@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>FinTech PrivacyGuard - Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: #0f172a;
+      color: #e5e7eb;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    }
+    .panel {
+      background: #111827;
+      border: 1px solid #1f2937;
+    }
+    .btn {
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .highlighted {
+      font-weight: bold;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .label-PER { background-color: #f9a8d4; color: #831843; }
+    .label-ORG { background-color: #a5b4fc; color: #312e81; }
+    .label-LOC { background-color: #93c5fd; color: #1e40af; }
+    .label-DATE { background-color: #a7f3d0; color: #065f46; }
+    .label-IDNP { background-color: #fca5a5; color: #991b1b; }
+    .label-IBAN { background-color: #d1d5db; color: #1f2937; }
+    .label-EMAIL { background-color: #c4b5fd; color: #4338ca; }
+    .label-PHONE { background-color: #fdba74; color: #9a3412; }
+  </style>
+</head>
+<body class="flex flex-col items-center p-8 min-h-screen">
+
+  <header class="text-center mb-10">
+    <h1 class="text-5xl font-extrabold tracking-tight text-white mb-2">FinTech PrivacyGuard</h1>
+    <p class="text-xl text-gray-400">A Hybrid Anonymization Demo</p>
+  </header>
+
+  <main class="w-full max-w-4xl">
+    <div class="panel rounded-2xl p-6 mb-6">
+      <h2 class="text-2xl font-bold mb-4">Input Text</h2>
+      <textarea id="inputText" class="w-full h-40 p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Paste or type your text here..."></textarea>
+      <div class="flex flex-col sm:flex-row mt-4 space-y-2 sm:space-y-0 sm:space-x-4">
+        <button id="btnAnonymize" class="btn bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">Anonymize</button>
+        <button id="btnClear" class="btn bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full">Clear</button>
+        <button id="btnSample" class="btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-full">Load Sample</button>
+      </div>
+    </div>
+
+    <div id="statusMessage" class="text-center font-bold text-lg mb-4 hidden"></div>
+
+    <div id="anonBlock" class="panel rounded-2xl p-6 mb-6">
+      <h2 class="text-2xl font-bold mb-4">Anonymized Text</h2>
+      <p id="anonText" class="whitespace-pre-wrap leading-relaxed text-gray-300"></p>
+    </div>
+
+    <div id="deanonBlock" class="panel rounded-2xl p-6" style="display: none;">
+      <h2 class="text-2xl font-bold mb-4">Original Text</h2>
+      <div id="origHighlighted" class="whitespace-pre-wrap leading-relaxed"></div>
+      <button id="btnDeanonymize" class="btn bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-full mt-4">Deanonymize</button>
+    </div>
+
+    <div id="entitiesBlock" class="panel rounded-2xl p-6 mt-6">
+      <h2 class="text-2xl font-bold mb-4">Detected Entities</h2>
+      <table class="w-full text-left table-auto">
+        <thead>
+          <tr class="text-gray-400 border-b border-gray-700">
+            <th class="py-2 px-4">Entity</th>
+            <th class="py-2 px-4">Label</th>
+          </tr>
+        </thead>
+        <tbody id="entitiesTable" class="divide-y divide-gray-700">
+          <!-- Entities will be inserted here -->
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    const inputText = document.getElementById("inputText");
+    const anonText = document.getElementById("anonText");
+    const origHighlighted = document.getElementById("origHighlighted");
+    const entitiesTable = document.getElementById("entitiesTable");
+    const btnAnonymize = document.getElementById("btnAnonymize");
+    const btnClear = document.getElementById("btnClear");
+    const btnSample = document.getElementById("btnSample");
+    const btnDeanonymize = document.getElementById("btnDeanonymize");
+    const statusMessage = document.getElementById("statusMessage");
+    const deanonBlock = document.getElementById("deanonBlock");
+
+    let originalAnonymizationData = null;
+
+    function setStatus(message, isSuccess = true) {
+      statusMessage.textContent = message;
+      statusMessage.className = `text-center font-bold text-lg mb-4 ${isSuccess ? 'text-emerald-500' : 'text-red-500'}`;
+      statusMessage.style.display = 'block';
+      setTimeout(() => {
+        statusMessage.style.display = 'none';
+      }, 5000);
+    }
+
+    function highlightText(text, entities) {
+      if (!entities || entities.length === 0) return text;
+
+      const sortedEntities = [...entities].sort((a, b) => a.start - b.start);
+      let output = "";
+      let lastIndex = 0;
+
+      sortedEntities.forEach(entity => {
+        output += text.substring(lastIndex, entity.start);
+        output += `<span class="highlighted label-${entity.label}">${entity.text}</span>`;
+        lastIndex = entity.end;
+      });
+
+      output += text.substring(lastIndex);
+      return output;
+    }
+
+    async function anonymize() {
+      const text = inputText.value;
+      if (!text) {
+        setStatus("Please enter some text.", false);
+        return;
+      }
+
+      setStatus("Anonymizing...", true);
+      const url = "/anonymize";
+      const data = { text: text };
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          originalAnonymizationData = result;
+          anonText.textContent = result.anonymized_text;
+
+          entitiesTable.innerHTML = "";
+          result.entities.forEach(entity => {
+            const row = document.createElement("tr");
+            row.innerHTML = `<td class="py-2 px-4">${entity.text}</td><td class="py-2 px-4"><span class="label-${entity.label} rounded-full py-1 px-3 text-sm font-semibold">${entity.label}</span></td>`;
+            entitiesTable.appendChild(row);
+          });
+
+          deanonBlock.style.display = "block";
+          setStatus("Anonymization successful!", true);
+        } else {
+          setStatus(`Anonymization failed: ${result.error || response.statusText}`, false);
+          console.error('Anonymization failed:', result);
+        }
+      } catch (error) {
+        setStatus(`Anonymization failed: ${error.message}`, false);
+        console.error('Anonymization failed:', error);
+      }
+    }
+
+    async function deanonymize() {
+      const text = anonText.textContent;
+      if (!text) {
+        setStatus("Anonymized text is empty.", false);
+        return;
+      }
+
+      setStatus("Deanonymizing...", true);
+      const url = "/deanonymize";
+      const data = { text: text };
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          const highlightedOriginalText = highlightText(result.original_text, originalAnonymizationData.entities);
+          origHighlighted.innerHTML = highlightedOriginalText;
+          setStatus("Deanonymization successful!", true);
+        } else {
+          setStatus(`Deanonymization failed: ${result.error || response.statusText}`, false);
+          console.error('Deanonymization failed:', result);
+        }
+      } catch (error) {
+        setStatus(`Deanonymization failed: ${error.message}`, false);
+        console.error('Deanonymization failed:', error);
+      }
+    }
+
+    btnAnonymize.addEventListener("click", anonymize);
+    btnDeanonymize.addEventListener("click", deanonymize);
+
+    btnClear.addEventListener("click", () => {
+      inputText.value = "";
+      anonText.textContent = "";
+      origHighlighted.innerHTML = "";
+      entitiesTable.innerHTML = "";
+      deanonBlock.style.display = "none";
+      setStatus("Cleared!", true);
+    });
+
+    btnSample.addEventListener("click", () => {
+      inputText.value = "În data de 15 aprilie 2024, domnul Ion Popescu, cu CNP 2850315123456, inginer software în domeniul IT, domiciliat pe strada Ștefan cel Mare 45, Chișinău, cod poștal MD-2001, contactabil la telefon 069123456 și prin email ion.popescu@gmail.com, utilizator ion_popescu.";
+      setStatus("Sample text loaded!", true);
+    });
+  </script>
+
+</body>
+</html>
