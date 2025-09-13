@@ -10,7 +10,6 @@ import torch
 app = FastAPI(title="FinTech PrivacyGuard Demo")
 
 # Load pre-trained NER model and tokenizer
-# This model has been updated to the one you asked about.
 MODEL_NAME = "EvanD/xlm-roberta-base-romanian-ner-ronec"
 tokenizer = None
 model = None

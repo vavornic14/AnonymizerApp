@@ -1,135 +1,168 @@
 from pydantic import BaseModel
-from typing import List, Dict, Any
-import torch
-import torch.nn.functional as F
+from typing import List, Dict, Any, Optional
+from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
+import regex as re
+import random
 
-
-# --- Pydantic Models for API Requests/Responses ---
 
 class AnonymizationRequest(BaseModel):
-    """Request model for anonymizing text."""
     text: str
 
 
+class Entity(BaseModel):
+    start: int
+    end: int
+    text: str
+    label: str
+    replacement: str
+
+
 class AnonymizationResponse(BaseModel):
-    """Response model for anonymized text and detected entities."""
     anonymized_text: str
-    entities: List[Dict[str, Any]]
+    entities: List[Entity]
 
 
 class DeanonymizationRequest(BaseModel):
-    """Request model for deanonymizing text."""
     text: str
 
 
 class DeanonymizationResponse(BaseModel):
-    """Response model for deanonymized text."""
     original_text: str
 
 
-# --- Anonymization Class ---
-
 class Anonymizer:
-    """
-    A hybrid anonymization class that uses a fine-tuned NER model
-    and a simple in-memory map for pseudonymization.
-    """
+    def __init__(self, tokenizer: Optional[AutoTokenizer] = None,
+                 model: Optional[AutoModelForTokenClassification] = None, id2label: Optional[Dict[int, str]] = None,
+                 label2id: Optional[Dict[str, int]] = None):
+        if tokenizer and model:
+            self.nlp_pipeline = pipeline(
+                "ner",
+                model=model,
+                tokenizer=tokenizer,
+                aggregation_strategy="simple"
+            )
+        else:
+            self.nlp_pipeline = None
 
-    def __init__(self, tokenizer, model, id2label, label2id):
-        self.tokenizer = tokenizer
-        self.model = model
-        self.id2label = id2label
-        self.label2id = label2id
-        self.anonymization_map = {}
-        self.reverse_map = {}
+        self.regex_rules = {
+            "PHONE": re.compile(r'\b(07\d{8}|06\d{7}|02\d{8}|03\d{8})\b'),
+            "CNP": re.compile(r'\b(1|2)\d{12}\b'),
+            "ID_CARD": re.compile(r'[A-Z]{2}\s?\d{7}'),
+            "IBAN": re.compile(r'\bRO\d{2}[A-Z]{4}\d{16}\b'),
+            "EMAIL": re.compile(r'[\w\.-]+@[\w\.-]+\.\w{2,}'),
+            "ADDRESS": re.compile(r'strada\s[\w\s]+\d+,\s?[\w\s]+')
+        }
 
-    def _get_ner_entities(self, text: str) -> List[Dict[str, Any]]:
-        """
-        Performs NER inference on the text and returns a list of entities.
-        NOTE: This is a simplified version for the demo.
-        """
-        if not self.model or not self.tokenizer:
-            return []
+        self.dummy_data = {
+            "PHONE": ["0721010101", "0691234567"],
+            "CNP": ["1850101123456", "2910202654321"],
+            "EMAIL": ["dummy.user@example.com", "privacyshield@email.com"],
+            "ADDRESS": ["Strada Mihai Viteazul 12, București", "Bulevardul Dacia 33, Chișinău"],
+            "DATETIME": ["25 martie 2023", "01 ianuarie 2022"],
+            "PER": ["Ion Georgescu", "Maria Stan"],
+            "LOC": ["București", "Iași"],
+            "ORG": ["Ministerul Finanțelor", "Google"],
+            "MISC": ["Eurovision", "Uniunea Europeană"],
+            "NUMERIC": ["123456", "987654"]
+        }
+        self.replacement_cache = {}
 
-        inputs = self.tokenizer(text, return_tensors="pt")
-        outputs = self.model(**inputs)
-        predictions = torch.argmax(outputs.logits, dim=2)
+    def _generate_dummy_data(self, label: str, original_text: str) -> str:
+        cache_key = (label, original_text)
+        if cache_key in self.replacement_cache:
+            return self.replacement_cache[cache_key]
 
-        tokens = self.tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-        labels = [self.id2label[p.item()] for p in predictions[0]]
+        if label in self.dummy_data:
+            replacement = random.choice(self.dummy_data[label])
+            self.replacement_cache[cache_key] = replacement
+            return replacement
 
-        entities = []
-        current_entity_label = None
-        current_entity_text = ""
-        current_entity_start = -1
+        replacement = f"[{label}]"
+        self.replacement_cache[cache_key] = replacement
+        return replacement
 
-        for i, (token, label) in enumerate(zip(tokens, labels)):
-            if token.startswith("Ġ"):
-                token = " " + token[1:]
+    def _filter_overlapping_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        # Sort by length (descending) to prioritize longer entities
+        entities.sort(key=lambda x: x['end'] - x['start'], reverse=True)
 
-            if label.startswith("B-"):
-                if current_entity_text:
-                    entities.append({
-                        "text": current_entity_text.strip(),
-                        "label": current_entity_label,
-                        "start": current_entity_start,
-                        "end": len(current_entity_text) + current_entity_start - 1,
-                    })
-                current_entity_label = label[2:]
-                current_entity_text = token
-                current_entity_start = i
-            elif label.startswith("I-") and current_entity_label:
-                current_entity_text += token
-            else:
-                if current_entity_text:
-                    entities.append({
-                        "text": current_entity_text.strip(),
-                        "label": current_entity_label,
-                        "start": current_entity_start,
-                        "end": len(current_entity_text) + current_entity_start - 1,
-                    })
-                current_entity_label = None
-                current_entity_text = ""
-                current_entity_start = -1
+        filtered_entities = []
 
-        if current_entity_text:
-            entities.append({
-                "text": current_entity_text.strip(),
-                "label": current_entity_label,
-                "start": current_entity_start,
-                "end": len(current_entity_text) + current_entity_start - 1,
-            })
-
-        return entities
-
-    def anonymize_text(self, text: str) -> (str, List[Dict[str, Any]]):
-        """
-        Anonymizes text by replacing detected entities with placeholders.
-        """
-        entities = self._get_ner_entities(text)
-        anonymized_text = text
-
-        # Sort entities by start position to handle overlaps gracefully
-        entities.sort(key=lambda x: x["start"], reverse=True)
+        # Keep track of the parts of the text that have been covered by an entity
+        covered_indices = set()
 
         for entity in entities:
-            original_text = entity["text"]
-            replacement = f"[{entity['label']}]"
-            anonymized_text = anonymized_text[:entity['start']] + replacement + anonymized_text[
-                entity['start'] + len(original_text):]
+            entity_range = range(entity['start'], entity['end'])
+            is_overlapping = False
 
-            # Store the mapping for deanonymization
-            if replacement not in self.anonymization_map:
-                self.anonymization_map[replacement] = original_text
-                self.reverse_map[original_text] = replacement
+            # Check if this entity's range overlaps with any previously covered range
+            for i in entity_range:
+                if i in covered_indices:
+                    is_overlapping = True
+                    break
 
-        return anonymized_text, entities
+            if not is_overlapping:
+                filtered_entities.append(entity)
+                # Add all indices of the current entity to the covered set
+                for i in entity_range:
+                    covered_indices.add(i)
 
-    def deanonymize_text(self, text: str) -> str:
-        """
-        Deanonymizes text by restoring original entities.
-        """
-        original_text = text
-        for placeholder, original_value in self.anonymization_map.items():
-            original_text = original_text.replace(placeholder, original_value)
-        return original_text
+        return filtered_entities
+
+    def anonymize_text(self, text: str):
+        entities_to_anonymize = []
+
+        # 1. Collect entities from the NER model
+        if self.nlp_pipeline:
+            ner_results = self.nlp_pipeline(text)
+            for entity in ner_results:
+                label = entity['entity_group']
+                if label not in ["O"]:
+                    entities_to_anonymize.append({
+                        'start': entity['start'],
+                        'end': entity['end'],
+                        'original_text': entity['word'],
+                        'label': label,
+                        'replacement': self._generate_dummy_data(label, entity['word'])
+                    })
+
+        # 2. Collect entities from regex rules
+        for label, pattern in self.regex_rules.items():
+            for match in pattern.finditer(text):
+                entities_to_anonymize.append({
+                    'start': match.span()[0],
+                    'end': match.span()[1],
+                    'original_text': match.group(0),
+                    'label': label,
+                    'replacement': self._generate_dummy_data(label, match.group(0))
+                })
+
+        # 3. Filter overlapping entities
+        non_overlapping_entities = self._filter_overlapping_entities(entities_to_anonymize)
+
+        # 4. Sort entities by end position in descending order for right-to-left replacement
+        non_overlapping_entities.sort(key=lambda x: x['end'], reverse=True)
+
+        # 5. Perform replacements from right to left
+        anonymized_text = text
+        final_entities = []
+        for entity in non_overlapping_entities:
+            start = entity['start']
+            end = entity['end']
+            replacement = entity['replacement']
+
+            anonymized_text = anonymized_text[:start] + replacement + anonymized_text[end:]
+
+            final_entities.append(Entity(
+                start=start,
+                end=start + len(replacement),
+                text=entity['original_text'],
+                label=entity['label'],
+                replacement=replacement
+            ))
+
+        return anonymized_text, sorted(final_entities, key=lambda e: e.start)
+
+    def deanonymize_text(self, anonymized_text: str):
+        # Deanonymization is not fully implemented in this demo as it's typically irreversible.
+        # This function serves as a placeholder for a complete system.
+        return anonymized_text
