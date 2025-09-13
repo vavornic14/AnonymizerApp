@@ -53,33 +53,8 @@ class Anonymizer:
             "ADDRESS": re.compile(r'strada\s[\w\s]+\d+,\s?[\w\s]+')
         }
 
-        self.dummy_data = {
-            "PHONE": ["0721010101", "0691234567"],
-            "CNP": ["1850101123456", "2910202654321"],
-            "EMAIL": ["dummy.user@example.com", "privacyshield@email.com"],
-            "ADDRESS": ["Strada Mihai Viteazul 12, București", "Bulevardul Dacia 33, Chișinău"],
-            "DATETIME": ["25 martie 2023", "01 ianuarie 2022"],
-            "PER": ["Ion Georgescu", "Maria Stan"],
-            "LOC": ["București", "Iași"],
-            "ORG": ["Ministerul Finanțelor", "Google"],
-            "MISC": ["Eurovision", "Uniunea Europeană"],
-            "NUMERIC": ["123456", "987654"]
-        }
-        self.replacement_cache = {}
-
-    def _generate_dummy_data(self, label: str, original_text: str) -> str:
-        cache_key = (label, original_text)
-        if cache_key in self.replacement_cache:
-            return self.replacement_cache[cache_key]
-
-        if label in self.dummy_data:
-            replacement = random.choice(self.dummy_data[label])
-            self.replacement_cache[cache_key] = replacement
-            return replacement
-
-        replacement = f"[{label}]"
-        self.replacement_cache[cache_key] = replacement
-        return replacement
+    def _generate_label_replacement(self, label: str) -> str:
+        return f"[{label}]"
 
     def _filter_overlapping_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # Sort by length (descending) to prioritize longer entities
@@ -122,7 +97,7 @@ class Anonymizer:
                         'end': entity['end'],
                         'original_text': entity['word'],
                         'label': label,
-                        'replacement': self._generate_dummy_data(label, entity['word'])
+                        'replacement': self._generate_label_replacement(label)
                     })
 
         # 2. Collect entities from regex rules
@@ -133,7 +108,7 @@ class Anonymizer:
                     'end': match.span()[1],
                     'original_text': match.group(0),
                     'label': label,
-                    'replacement': self._generate_dummy_data(label, match.group(0))
+                    'replacement': self._generate_label_replacement(label)
                 })
 
         # 3. Filter overlapping entities
