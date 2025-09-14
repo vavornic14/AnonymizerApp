@@ -1,225 +1,261 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>FinTech PrivacyGuard - Demo</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      background: #0f172a;
-      color: #e5e7eb;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    }
-    .panel {
-      background: #111827;
-      border: 1px solid #1f2937;
-    }
-    .btn {
-      transition: all 0.2s;
-    }
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .highlighted {
-      font-weight: bold;
-      padding: 2px 4px;
-      border-radius: 4px;
-    }
-    .label-PER { background-color: #f9a8d4; color: #831843; }
-    .label-ORG { background-color: #a5b4fc; color: #312e81; }
-    .label-LOC { background-color: #93c5fd; color: #1e40af; }
-    .label-DATE { background-color: #a7f3d0; color: #065f46; }
-    .label-IDNP { background-color: #fca5a5; color: #991b1b; }
-    .label-IBAN { background-color: #d1d5db; color: #1f2937; }
-    .label-EMAIL { background-color: #c4b5fd; color: #4338ca; }
-    .label-PHONE { background-color: #fdba74; color: #9a3412; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTech PrivacyGuard Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #2c3e50;
+        }
+        .container {
+            max-width: 960px;
+        }
+        .section-title {
+            border-left: 4px solid #4a90e2;
+            padding-left: 1rem;
+        }
+    </style>
 </head>
-<body class="flex flex-col items-center p-8 min-h-screen">
+<body class="bg-gray-800 flex items-center justify-center min-h-screen p-4">
 
-  <header class="text-center mb-10">
-    <h1 class="text-5xl font-extrabold tracking-tight text-white mb-2">FinTech PrivacyGuard</h1>
-    <p class="text-xl text-gray-400">A Hybrid Anonymization Demo</p>
-  </header>
+    <main class="container mx-auto bg-gray-900 text-gray-200 rounded-xl shadow-lg p-8 space-y-8">
+        <header class="text-center space-y-2">
+            <h1 class="text-4xl font-extrabold text-white">acta</h1>
+            <p class="text-lg text-gray-400">anonimizator de la echipa finguys</p>
+        </header>
 
-  <main class="w-full max-w-4xl">
-    <div class="panel rounded-2xl p-6 mb-6">
-      <h2 class="text-2xl font-bold mb-4">Input Text</h2>
-      <textarea id="inputText" class="w-full h-40 p-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Paste or type your text here..."></textarea>
-      <div class="flex flex-col sm:flex-row mt-4 space-y-2 sm:space-y-0 sm:space-x-4">
-        <button id="btnAnonymize" class="btn bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-full">Anonymize</button>
-        <button id="btnClear" class="btn bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full">Clear</button>
-        <button id="btnSample" class="btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-full">Load Sample</button>
-      </div>
+        <!-- Anonymization Section -->
+        <section class="space-y-4">
+            <h2 class="text-2xl font-bold text-gray-200 section-title">1. Anonimizează Textul Tău</h2>
+            <textarea id="inputText" class="w-full h-48 p-4 bg-gray-700 text-gray-200 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Lipește textul tău financiar aici..." oninput="handleTextChange()"></textarea>
+
+            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                <button id="anonymizeButton" onclick="anonymizeText()" class="w-full sm:w-1/3 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">Anonimizează</button>
+                <button id="loadSampleButton" onclick="loadSample()" class="w-full sm:w-1/3 bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-yellow-600 transition duration-300 ease-in-out transform hover:scale-105">Încarcă eșantion</button>
+            </div>
+
+            <div id="anonymizedOutputContainer" class="hidden mt-6">
+                <h3 class="text-xl font-semibold text-gray-200">Text Anonimizat</h3>
+                <textarea id="anonymizedTextOutput" class="w-full h-48 p-4 mt-2 bg-gray-700 text-gray-200 rounded-lg border border-gray-600 focus:outline-none" readonly></textarea>
+                <button id="copyAnonymizedButton" onclick="copyToClipboard('anonymizedTextOutput')" class="mt-2 bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md hover:bg-gray-400 transition duration-300">Copiază Textul Anonimizat</button>
+            </div>
+        </section>
+
+        <!-- Entities Section -->
+        <section id="entitiesSection" class="hidden space-y-4 mt-8">
+            <h2 class="text-2xl font-bold text-gray-200 section-title">2. Entități Detectate</h2>
+            <div id="entitiesOutput" class="bg-gray-700 p-4 rounded-lg border border-gray-600">
+                <p class="text-gray-400">Entitățile vor apărea aici după anonimizare.</p>
+            </div>
+        </section>
+
+        <!-- AI Analysis Section -->
+        <section class="space-y-4 mt-8">
+            <h2 class="text-2xl font-bold text-gray-200 section-title">3. Analiză AI</h2>
+            <p class="text-gray-400">Obține un rezumat general al textului anonimizat de la o inteligență artificială, fără a compromite confidențialitatea.</p>
+            <button id="analyzeButton" onclick="analyzeText()" class="w-full sm:w-auto bg-purple-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-purple-700 transition duration-300 ease-in-out transform hover:scale-105" disabled>Analizează cu Cohere</button>
+
+            <div id="analysisOutputContainer" class="hidden mt-6">
+                <h3 class="text-xl font-semibold text-gray-200">Analiza Cohere</h3>
+                <p id="analysisOutput" class="p-4 mt-2 bg-gray-700 text-gray-200 rounded-lg border border-gray-600 whitespace-pre-wrap"></p>
+            </div>
+        </section>
+
+        <!-- Deanonymization Section -->
+        <section class="space-y-4 mt-8">
+            <h2 class="text-2xl font-bold text-gray-200 section-title">4. Deanonimizează Textul</h2>
+            <p class="text-gray-400">Lipește textul anonimizat mai jos pentru a-l readuce la forma sa originală, sensibilă.</p>
+            <textarea id="deanonymizeInput" class="w-full h-48 p-4 bg-gray-700 text-gray-200 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Lipește textul anonimizat aici..."></textarea>
+            <button id="deanonymizeButton" onclick="deanonymizeText()" class="w-full sm:w-1/3 bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out transform hover:scale-105">Deanonimizează</button>
+        </section>
+    </main>
+
+    <!-- Modal for Messages -->
+    <div id="messageModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl max-w-sm w-full text-center space-y-4 border border-gray-700">
+            <h3 id="modalTitle" class="text-xl font-bold text-gray-200"></h3>
+            <p id="modalMessage" class="text-gray-400"></p>
+            <button onclick="closeModal()" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">Închide</button>
+        </div>
     </div>
 
-    <div id="statusMessage" class="text-center font-bold text-lg mb-4 hidden"></div>
+    <script>
+        let originalText = "";
+        let anonymizedEntities = [];
+        let isAnonymized = false;
 
-    <div id="anonBlock" class="panel rounded-2xl p-6 mb-6">
-      <h2 class="text-2xl font-bold mb-4">Anonymized Text</h2>
-      <p id="anonText" class="whitespace-pre-wrap leading-relaxed text-gray-300"></p>
-    </div>
+        const inputText = document.getElementById('inputText');
+        const anonymizeButton = document.getElementById('anonymizeButton');
+        const deanonymizeButton = document.getElementById('deanonymizeButton');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const anonymizedTextOutput = document.getElementById('anonymizedTextOutput');
+        const anonymizedOutputContainer = document.getElementById('anonymizedOutputContainer');
+        const entitiesSection = document.getElementById('entitiesSection');
+        const entitiesOutput = document.getElementById('entitiesOutput');
+        const analysisOutputContainer = document.getElementById('analysisOutputContainer');
+        const analysisOutput = document.getElementById('analysisOutput');
+        const messageModal = document.getElementById('messageModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const deanonymizeInput = document.getElementById('deanonymizeInput');
 
-    <div id="deanonBlock" class="panel rounded-2xl p-6" style="display: none;">
-      <h2 class="text-2xl font-bold mb-4">Original Text</h2>
-      <div id="origHighlighted" class="whitespace-pre-wrap leading-relaxed"></div>
-      <button id="btnDeanonymize" class="btn bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-full mt-4">Deanonymize</button>
-    </div>
-
-    <div id="entitiesBlock" class="panel rounded-2xl p-6 mt-6">
-      <h2 class="text-2xl font-bold mb-4">Detected Entities</h2>
-      <table class="w-full text-left table-auto">
-        <thead>
-          <tr class="text-gray-400 border-b border-gray-700">
-            <th class="py-2 px-4">Entity</th>
-            <th class="py-2 px-4">Label</th>
-          </tr>
-        </thead>
-        <tbody id="entitiesTable" class="divide-y divide-gray-700">
-          <!-- Entities will be inserted here -->
-        </tbody>
-      </table>
-    </div>
-  </main>
-
-  <script>
-    const inputText = document.getElementById("inputText");
-    const anonText = document.getElementById("anonText");
-    const origHighlighted = document.getElementById("origHighlighted");
-    const entitiesTable = document.getElementById("entitiesTable");
-    const btnAnonymize = document.getElementById("btnAnonymize");
-    const btnClear = document.getElementById("btnClear");
-    const btnSample = document.getElementById("btnSample");
-    const btnDeanonymize = document.getElementById("btnDeanonymize");
-    const statusMessage = document.getElementById("statusMessage");
-    const deanonBlock = document.getElementById("deanonBlock");
-
-    let originalAnonymizationData = null;
-
-    function setStatus(message, isSuccess = true) {
-      statusMessage.textContent = message;
-      statusMessage.className = `text-center font-bold text-lg mb-4 ${isSuccess ? 'text-emerald-500' : 'text-red-500'}`;
-      statusMessage.style.display = 'block';
-      setTimeout(() => {
-        statusMessage.style.display = 'none';
-      }, 5000);
-    }
-
-    function highlightText(text, entities) {
-      if (!entities || entities.length === 0) return text;
-
-      const sortedEntities = [...entities].sort((a, b) => a.start - b.start);
-      let output = "";
-      let lastIndex = 0;
-
-      sortedEntities.forEach(entity => {
-        output += text.substring(lastIndex, entity.start);
-        output += `<span class="highlighted label-${entity.label}">${entity.text}</span>`;
-        lastIndex = entity.end;
-      });
-
-      output += text.substring(lastIndex);
-      return output;
-    }
-
-    async function anonymize() {
-      const text = inputText.value;
-      if (!text) {
-        setStatus("Please enter some text.", false);
-        return;
-      }
-
-      setStatus("Anonymizing...", true);
-      const url = "/anonymize";
-      const data = { text: text };
-
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-          originalAnonymizationData = result;
-          anonText.textContent = result.anonymized_text;
-
-          entitiesTable.innerHTML = "";
-          result.entities.forEach(entity => {
-            const row = document.createElement("tr");
-            row.innerHTML = `<td class="py-2 px-4">${entity.text}</td><td class="py-2 px-4"><span class="label-${entity.label} rounded-full py-1 px-3 text-sm font-semibold">${entity.label}</span></td>`;
-            entitiesTable.appendChild(row);
-          });
-
-          deanonBlock.style.display = "block";
-          setStatus("Anonymization successful!", true);
-        } else {
-          setStatus(`Anonymization failed: ${result.error || response.statusText}`, false);
-          console.error('Anonymization failed:', result);
+        function showModal(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            messageModal.classList.remove('hidden');
         }
-      } catch (error) {
-        setStatus(`Anonymization failed: ${error.message}`, false);
-        console.error('Anonymization failed:', error);
-      }
-    }
 
-    async function deanonymize() {
-      const text = anonText.textContent;
-      if (!text) {
-        setStatus("Anonymized text is empty.", false);
-        return;
-      }
-
-      setStatus("Deanonymizing...", true);
-      const url = "/deanonymize";
-      const data = { text: text };
-
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-          const highlightedOriginalText = highlightText(result.original_text, originalAnonymizationData.entities);
-          origHighlighted.innerHTML = highlightedOriginalText;
-          setStatus("Deanonymization successful!", true);
-        } else {
-          setStatus(`Deanonymization failed: ${result.error || response.statusText}`, false);
-          console.error('Deanonymization failed:', result);
+        function closeModal() {
+            messageModal.classList.add('hidden');
         }
-      } catch (error) {
-        setStatus(`Deanonymization failed: ${error.message}`, false);
-        console.error('Deanonymization failed:', error);
-      }
-    }
 
-    btnAnonymize.addEventListener("click", anonymize);
-    btnDeanonymize.addEventListener("click", deanonymize);
+        function handleTextChange() {
+            const currentText = inputText.value;
+            if (currentText.length > 0) {
+                anonymizeButton.disabled = false;
+            } else {
+                anonymizeButton.disabled = true;
+                analyzeButton.disabled = true;
+                anonymizedOutputContainer.classList.add('hidden');
+                entitiesSection.classList.add('hidden');
+                analysisOutputContainer.classList.add('hidden');
+                isAnonymized = false;
+            }
+        }
 
-    btnClear.addEventListener("click", () => {
-      inputText.value = "";
-      anonText.textContent = "";
-      origHighlighted.innerHTML = "";
-      entitiesTable.innerHTML = "";
-      deanonBlock.style.display = "none";
-      setStatus("Cleared!", true);
-    });
+        async function anonymizeText() {
+            originalText = inputText.value;
+            if (!originalText) {
+                showModal("Intrare Necesară", "Te rugăm să introduci un text pentru anonimizare.");
+                return;
+            }
 
-    btnSample.addEventListener("click", () => {
-      inputText.value = "În data de 15 aprilie 2024, domnul Ion Popescu, cu CNP 2850315123456, inginer software în domeniul IT, domiciliat pe strada Ștefan cel Mare 45, Chișinău, cod poștal MD-2001, contactabil la telefon 069123456 și prin email ion.popescu@gmail.com, utilizator ion_popescu.";
-      setStatus("Sample text loaded!", true);
-    });
-  </script>
+            try {
+                const response = await fetch('/api/anonymize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: originalText })
+                });
 
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `Anonymization failed with status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                anonymizedTextOutput.value = data.anonymized_text;
+                anonymizedEntities = data.entities;
+
+                anonymizedOutputContainer.classList.remove('hidden');
+                analyzeButton.disabled = false;
+                isAnonymized = true;
+
+                displayEntities(anonymizedEntities);
+
+            } catch (error) {
+                showModal("Eroare de Anonimizare", `Anonimizare eșuată: ${error.message}`);
+            }
+        }
+
+        async function deanonymizeText() {
+            const textToDeanonymize = deanonymizeInput.value;
+            if (!textToDeanonymize || anonymizedEntities.length === 0) {
+                showModal("Operație Invalidă", "Te rugăm să anonimizezi textul mai întâi și să te asiguri că textul de deanonimizat nu este gol.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/deanonymize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: textToDeanonymize,
+                        entities: anonymizedEntities
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `Deanonymization failed with status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showModal("Text Deanonimizat", data.original_text);
+
+            } catch (error) {
+                showModal("Eroare de Deanonimizare", `Deanonimizare eșuată: ${error.message}`);
+            }
+        }
+
+        async function analyzeText() {
+            const textToAnalyze = anonymizedTextOutput.value;
+            if (!textToAnalyze || !isAnonymized) {
+                showModal("Operație Invalidă", "Te rugăm să anonimizezi textul înainte de analiză.");
+                return;
+            }
+
+            analyzeButton.disabled = true;
+            analyzeButton.textContent = 'Se analizează...';
+            analysisOutput.textContent = 'Te rugăm să aștepți în timp ce AI-ul analizează textul...';
+            analysisOutputContainer.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/cohere-analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: textToAnalyze,
+                        language: 'Romanian'
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || `Analysis failed with status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                analysisOutput.textContent = data.analysis;
+
+            } catch (error) {
+                analysisOutput.textContent = `Eroare la analiză: ${error.message}`;
+            } finally {
+                analyzeButton.disabled = false;
+                analyzeButton.textContent = 'Analizează cu Cohere';
+            }
+        }
+
+        function loadSample() {
+            inputText.value = `Bună, numele meu este Ioana Popescu și numărul meu de telefon este 0722123456. Codul meu personal este 1850101010101 și locuiesc pe strada Principală 1, București. Am un cont cu IBAN RO12ABCD1234567890123456. Adresa mea de email este ioana.popescu@exemplu.com. De asemenea, am un cont de economii cu seria și numărul cărții de identitate AB 1234567.`;
+            handleTextChange();
+            showModal("Eșantion Încărcat", "Textul eșantion a fost încărcat. Fă clic pe 'Anonimizează' pentru a începe.");
+        }
+
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            element.select();
+            element.setSelectionRange(0, 99999);
+            document.execCommand("copy");
+            showModal("Copiat!", "Textul a fost copiat în clipboard.");
+        }
+
+        function displayEntities(entities) {
+            entitiesOutput.innerHTML = '';
+            if (entities.length === 0) {
+                entitiesOutput.innerHTML = '<p class="text-gray-400">Nu au fost detectate entități.</p>';
+            } else {
+                entities.forEach(entity => {
+                    const entityElement = document.createElement('div');
+                    entityElement.className = 'bg-blue-600 text-white p-3 rounded-md mb-2';
+                    entityElement.innerHTML = `<span class="font-semibold">${entity.entity_type}</span>: <span class="text-gray-100">${entity.original_text}</span>`;
+                    entitiesOutput.appendChild(entityElement);
+                });
+            }
+            entitiesSection.classList.remove('hidden');
+        }
+    </script>
 </body>
 </html>

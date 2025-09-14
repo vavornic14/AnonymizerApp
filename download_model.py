@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 
-MODEL_NAME = "dumitrescu/bert-base-romanian-cased-v1-ner"
+MODEL_NAME = "Finguys/acta-anonymizer-financial"
 
 print(f"Downloading tokenizer for {MODEL_NAME}...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)

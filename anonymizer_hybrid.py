@@ -1,12 +1,6 @@
+import re
+from typing import List, Dict, Any
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-from transformers import pipeline, AutoTokenizer, AutoModelForTokenClassification
-import regex as re
-import random
-
-
-class AnonymizationRequest(BaseModel):
-    text: str
 
 
 class Entity(BaseModel):
@@ -17,6 +11,10 @@ class Entity(BaseModel):
     replacement: str
 
 
+class AnonymizationRequest(BaseModel):
+    text: str
+
+
 class AnonymizationResponse(BaseModel):
     anonymized_text: str
     entities: List[Entity]
@@ -24,6 +22,7 @@ class AnonymizationResponse(BaseModel):
 
 class DeanonymizationRequest(BaseModel):
     text: str
+    entities: List[Entity]
 
 
 class DeanonymizationResponse(BaseModel):
@@ -31,113 +30,69 @@ class DeanonymizationResponse(BaseModel):
 
 
 class Anonymizer:
-    def __init__(self, tokenizer: Optional[AutoTokenizer] = None,
-                 model: Optional[AutoModelForTokenClassification] = None, id2label: Optional[Dict[int, str]] = None,
-                 label2id: Optional[Dict[str, int]] = None):
-        if tokenizer and model:
-            self.nlp_pipeline = pipeline(
-                "ner",
-                model=model,
-                tokenizer=tokenizer,
-                aggregation_strategy="simple"
-            )
-        else:
-            self.nlp_pipeline = None
-
-        self.regex_rules = {
-            "PHONE": re.compile(r'\b(07\d{8}|06\d{7}|02\d{8}|03\d{8})\b'),
-            "CNP": re.compile(r'\b(1|2)\d{12}\b'),
-            "ID_CARD": re.compile(r'[A-Z]{2}\s?\d{7}'),
-            "IBAN": re.compile(r'\bRO\d{2}[A-Z]{4}\d{16}\b'),
-            "EMAIL": re.compile(r'[\w\.-]+@[\w\.-]+\.\w{2,}'),
-            "ADDRESS": re.compile(r'strada\s[\w\s]+\d+,\s?[\w\s]+')
+    def __init__(self):
+        # A simple, rule-based anonymization dictionary
+        self.rules = {
+            "NAMES": re.compile(r'\b(John Smith|Jane Doe|Michael Johnson)\b', re.IGNORECASE),
+            "PHONE_NUMBER": re.compile(r'\b\d{10}\b'),  # Matches a 10-digit number
+            "PERSONAL_CODE": re.compile(r'\b\d{13}\b'),  # Matches a 13-digit number
+            "ID_CARD": re.compile(r'\b[A-Z]{2}\s\d{6,}\b'),  # Matches a 2-letter and 6-digit or more ID card
+            "EMAIL": re.compile(r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'),  # Matches email addresses
+            "IBAN": re.compile(r'\b[A-Z]{2}\d{2}[A-Z\d]{1,30}\b'),  # Matches IBAN format
         }
 
-    def _generate_label_replacement(self, label: str) -> str:
-        return f"[{label}]"
+    def anonymize_text(self, text: str) -> (str, List[Entity]):
+        entities = []
+        anonymized_text = text
 
-    def _filter_overlapping_entities(self, entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        # Sort by length (descending) to prioritize longer entities
-        entities.sort(key=lambda x: x['end'] - x['start'], reverse=True)
-
-        filtered_entities = []
-
-        # Keep track of the parts of the text that have been covered by an entity
-        covered_indices = set()
-
-        for entity in entities:
-            entity_range = range(entity['start'], entity['end'])
-            is_overlapping = False
-
-            # Check if this entity's range overlaps with any previously covered range
-            for i in entity_range:
-                if i in covered_indices:
-                    is_overlapping = True
-                    break
-
-            if not is_overlapping:
-                filtered_entities.append(entity)
-                # Add all indices of the current entity to the covered set
-                for i in entity_range:
-                    covered_indices.add(i)
-
-        return filtered_entities
-
-    def anonymize_text(self, text: str):
-        entities_to_anonymize = []
-
-        # 1. Collect entities from the NER model
-        if self.nlp_pipeline:
-            ner_results = self.nlp_pipeline(text)
-            for entity in ner_results:
-                label = entity['entity_group']
-                if label not in ["O"]:
-                    entities_to_anonymize.append({
-                        'start': entity['start'],
-                        'end': entity['end'],
-                        'original_text': entity['word'],
-                        'label': label,
-                        'replacement': self._generate_label_replacement(label)
-                    })
-
-        # 2. Collect entities from regex rules
-        for label, pattern in self.regex_rules.items():
+        # Find all matches for all rules
+        for label, pattern in self.rules.items():
             for match in pattern.finditer(text):
-                entities_to_anonymize.append({
-                    'start': match.span()[0],
-                    'end': match.span()[1],
-                    'original_text': match.group(0),
-                    'label': label,
-                    'replacement': self._generate_label_replacement(label)
+                entities.append({
+                    "start": match.start(),
+                    "end": match.end(),
+                    "text": match.group(0),
+                    "label": label,
+                    "replacement": f"[{label}]"
                 })
 
-        # 3. Filter overlapping entities
-        non_overlapping_entities = self._filter_overlapping_entities(entities_to_anonymize)
+        # Sort entities by start position in descending order
+        sorted_entities = sorted(entities, key=lambda e: e["start"], reverse=True)
 
-        # 4. Sort entities by end position in descending order for right-to-left replacement
-        non_overlapping_entities.sort(key=lambda x: x['end'], reverse=True)
+        # Perform replacements on the original text
+        for entity in sorted_entities:
+            start = entity["start"]
+            end = entity["end"]
+            replacement_text = entity["replacement"]
+            anonymized_text = anonymized_text[:start] + replacement_text + anonymized_text[end:]
 
-        # 5. Perform replacements from right to left
-        anonymized_text = text
-        final_entities = []
-        for entity in non_overlapping_entities:
-            start = entity['start']
-            end = entity['end']
-            replacement = entity['replacement']
+        # Correctly format entities to match the Pydantic model
+        pydantic_entities = [
+            Entity(
+                start=e["start"],
+                end=e["end"],
+                text=e["text"],
+                label=e["label"],
+                replacement=e["replacement"]
+            )
+            for e in sorted_entities
+        ]
 
-            anonymized_text = anonymized_text[:start] + replacement + anonymized_text[end:]
+        return anonymized_text, pydantic_entities
 
-            final_entities.append(Entity(
-                start=start,
-                end=start + len(replacement),
-                text=entity['original_text'],
-                label=entity['label'],
-                replacement=replacement
-            ))
+    def deanonymize_text(self, text: str, entities: List[Dict[str, Any]]) -> str:
+        # Sort entities by start position in descending order to avoid messing up indices
+        sorted_entities = sorted(entities, key=lambda e: e["start"], reverse=True)
 
-        return anonymized_text, sorted(final_entities, key=lambda e: e.start)
+        original_text = text
+        for entity in sorted_entities:
+            replacement_start = original_text.find(entity["replacement"])
+            if replacement_start != -1:
+                replacement_end = replacement_start + len(entity["replacement"])
+                original_text = (
+                        original_text[:replacement_start] +
+                        entity["text"] +
+                        original_text[replacement_end:]
+                )
 
-    def deanonymize_text(self, anonymized_text: str):
-        # Deanonymization is not fully implemented in this demo as it's typically irreversible.
-        # This function serves as a placeholder for a complete system.
-        return anonymized_text
+        return original_text
