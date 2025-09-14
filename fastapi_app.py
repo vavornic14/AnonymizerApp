@@ -72,7 +72,7 @@ anonymizer = Anonymizer()
 
 # Cohere API logic with exponential backoff
 async def get_cohere_analysis(text: str):
-    api_key = "paQ78pEhKV7xhCQizWtAF7mbMfuYCZIfZuRNbGB9"
+    api_key = "XwLPqRhafzxz1bOdpLOlaCRvRqzVbKlpknGBrRxV"
     if not api_key:
         raise HTTPException(status_code=500, detail="COHERE_API_KEY environment variable not set.")
 
